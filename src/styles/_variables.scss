@@ -1,0 +1,58 @@
+// ==============================
+//  CUPHEAD-INSPIRED COLOR PALETTE
+// ==============================
+
+// Backgrounds & surfaces
+$parchment: #F2E8D5;
+$warm-cream: #E8D5B7;
+$paper-white: #FAF7F0;
+
+// Ink & outlines
+$ink-black: #1A1A1A;
+$sepia-brown: #8B6914;
+$dark-walnut: #3E2723;
+
+// Characters
+$dusty-red: #C0392B;
+$forest-teal: #1A6B5A;
+
+// Highlights & accents
+$warm-gold: #D4A017;
+$vintage-yellow: #F4D03F;
+$dusty-rose: #C97B84;
+$faded-blue: #5B7FA5;
+
+// Gameplay states
+$valid-move-color: rgba($forest-teal, 0.35);
+$selected-highlight: rgba($warm-gold, 0.45);
+$last-move-human: rgba($warm-gold, 0.2);
+$last-move-ai: rgba($faded-blue, 0.25);
+$invalid-flash: rgba($dusty-red, 0.4);
+
+// Board sizing
+$board-max-size: 600px;
+$square-size: calc(#{$board-max-size} / 8);
+$piece-outline: 3px;
+
+// Typography
+$font-title: 'Luckiest Guy', cursive;
+$font-body: 'Boogaloo', cursive;
+$font-mono: 'Courier New', monospace;
+
+// Animations
+$transition-speed: 0.2s;
+$bounce-duration: 2s;
+$shake-duration: 0.3s;
+$squash-duration: 0.25s;
+$ai-pulse-duration: 1.5s;
+$flicker-duration: 4s;
+
+// Borders (hand-drawn effect)
+$hand-drawn-border: 3px solid $ink-black;
+$retro-shadow: 4px 4px 0px $ink-black;
+$retro-shadow-hover: 6px 6px 0px $ink-black;
+
+// Grain & overlays
+$grain-opacity: 0.06;
+$vignette-strength: 0.35;
+

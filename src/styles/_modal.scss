@@ -1,0 +1,86 @@
+@use 'variables' as v;
+
+// ── OVERLAY ────────────────────────────────────────
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(v.$ink-black, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: fadeIn 0.4s ease;
+}
+
+// ── MODAL CARD ─────────────────────────────────────
+.game-over-modal {
+  background: v.$paper-white;
+  border: 5px solid v.$ink-black;
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  max-width: 420px;
+  width: 90vw;
+  text-align: center;
+  box-shadow: 10px 10px 0 v.$ink-black;
+  animation: fadeInScale 0.4s ease forwards;
+  position: relative;
+
+  // Paper texture
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 30px,
+    rgba(0, 0, 0, 0.015) 30px,
+    rgba(0, 0, 0, 0.015) 32px
+  );
+
+  &__result {
+    font-family: v.$font-title;
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+    animation: wobble 2s ease-in-out infinite;
+  }
+
+  &__result--win {
+    color: v.$warm-gold;
+    text-shadow: 2px 2px 0 v.$ink-black;
+  }
+
+  &__result--lose {
+    color: v.$dusty-red;
+    text-shadow: 2px 2px 0 v.$ink-black;
+  }
+
+  &__reason {
+    font-family: v.$font-body;
+    font-size: 1.1rem;
+    color: v.$sepia-brown;
+    margin-bottom: 1.5rem;
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 1rem;
+  }
+
+  &__stars {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+// ── CONFETTI ───────────────────────────────────────
+.confetti {
+  position: fixed;
+  top: -20px;
+  width: 12px;
+  height: 12px;
+  z-index: 501;
+  border-radius: 2px;
+  animation: confettiFall 3s linear forwards;
+  pointer-events: none;
+}
+

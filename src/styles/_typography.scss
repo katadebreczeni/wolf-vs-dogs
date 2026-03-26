@@ -1,0 +1,39 @@
+@use 'variables' as v;
+
+@import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Boogaloo&display=swap');
+
+.title {
+  font-family: v.$font-title;
+  font-size: 3rem;
+  color: v.$sepia-brown;
+  text-shadow: 3px 3px 0 v.$ink-black, -1px -1px 0 v.$warm-gold;
+  letter-spacing: 2px;
+  animation: wobble 3s ease-in-out infinite;
+  text-align: center;
+}
+
+.title--small {
+  font-size: 1.8rem;
+}
+
+.subtitle {
+  font-family: v.$font-body;
+  font-size: 1.4rem;
+  color: v.$sepia-brown;
+  text-align: center;
+}
+
+.text-error {
+  color: v.$dusty-red;
+  font-weight: bold;
+}
+
+.text-success {
+  color: v.$forest-teal;
+  font-weight: bold;
+}
+
+.text-gold {
+  color: v.$warm-gold;
+}
+

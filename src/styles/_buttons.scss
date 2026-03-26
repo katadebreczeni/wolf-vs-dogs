@@ -1,0 +1,62 @@
+@use 'variables' as v;
+@use 'sass:color';
+
+.btn {
+  font-family: v.$font-body;
+  font-size: 1.3rem;
+  padding: 12px 28px;
+  border: v.$hand-drawn-border;
+  border-radius: 12px;
+  background: v.$warm-cream;
+  color: v.$ink-black;
+  cursor: pointer;
+  position: relative;
+  transition: all v.$transition-speed ease;
+  box-shadow: v.$retro-shadow;
+  user-select: none;
+
+  &:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: v.$retro-shadow-hover;
+    background: v.$dusty-rose;
+    color: v.$paper-white;
+  }
+
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0px v.$ink-black;
+  }
+
+  &--wolf {
+    background: v.$dusty-red;
+    color: v.$paper-white;
+
+    &:hover {
+      background: color.adjust(v.$dusty-red, $lightness: -8%);
+    }
+  }
+
+  &--dog {
+    background: v.$forest-teal;
+    color: v.$paper-white;
+
+    &:hover {
+      background: color.adjust(v.$forest-teal, $lightness: -8%);
+    }
+  }
+
+  &--small {
+    font-size: 1rem;
+    padding: 8px 18px;
+  }
+
+  &--gold {
+    background: v.$warm-gold;
+    color: v.$ink-black;
+
+    &:hover {
+      background: v.$vintage-yellow;
+    }
+  }
+}
+
