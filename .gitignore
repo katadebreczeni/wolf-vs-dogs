@@ -28,6 +28,9 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# NPM config (corporate registry URLs)
+.npmrc
+
 # Logs
 *.log
 npm-debug.log*
