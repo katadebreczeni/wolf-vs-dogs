@@ -1,0 +1,175 @@
+@use 'variables' as v;
+
+.beanstalk {
+  position: relative;
+  width: 80px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  z-index: 2;
+  gap: 0;
+
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  &__castle {
+    font-size: 1.5rem;
+    animation: wobble 3s ease-in-out infinite;
+    filter: drop-shadow(2px 2px 0 v.$ink-black);
+  }
+
+  &__clouds {
+    font-size: 1.1rem;
+    opacity: 0.7;
+    animation: cloudFloat 4s ease-in-out infinite;
+  }
+
+  &__level-badge {
+    background: v.$warm-cream;
+    border: v.$hand-drawn-border;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    box-shadow: v.$retro-shadow;
+    z-index: 3;
+    margin-bottom: 4px;
+  }
+
+  &__vine-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  &__vine {
+    width: 6px;
+    background: v.$forest-teal;
+    border: 2px solid v.$ink-black;
+    border-radius: 3px;
+    transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: sway 3s ease-in-out infinite;
+  }
+
+  &__leaf {
+    position: absolute;
+    width: 18px;
+    height: 12px;
+    background: v.$warm-gold;
+    border: 2px solid v.$ink-black;
+    border-radius: 50% 0 50% 0;
+    animation: leafWiggle 2.5s ease-in-out infinite;
+    z-index: 2;
+
+    &--left {
+      right: 55%;
+      transform-origin: right center;
+    }
+
+    &--right {
+      left: 55%;
+      transform-origin: left center;
+      border-radius: 0 50% 0 50%;
+    }
+  }
+
+  &__ground {
+    width: 60px;
+    height: 18px;
+    background: v.$dark-walnut;
+    border: 2px solid v.$ink-black;
+    border-radius: 50% 50% 4px 4px;
+    margin-top: -2px;
+  }
+
+  &__progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  &__progress-bar {
+    width: 60px;
+    height: 6px;
+    background: v.$dark-walnut;
+    border: 1px solid v.$ink-black;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    background: v.$warm-gold;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  &__progress-text {
+    font-family: v.$font-body;
+    font-size: 0.7rem;
+    color: v.$sepia-brown;
+    text-align: center;
+    white-space: nowrap;
+
+    &--max {
+      color: v.$warm-gold;
+      font-weight: bold;
+    }
+  }
+
+  // Stage-specific vine heights
+  &--stage-0 .beanstalk__vine { height: 20px; }
+  &--stage-1 .beanstalk__vine { height: 80px; }
+  &--stage-2 .beanstalk__vine { height: 160px; }
+  &--stage-3 .beanstalk__vine { height: 260px; }
+  &--stage-4 .beanstalk__vine { height: 360px; }
+}
+
+// Beanstalk-specific keyframes
+@keyframes sway {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(1deg); }
+}
+
+@keyframes leafWiggle {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+@keyframes cloudFloat {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+
+// Responsive: mobile layout
+@media (max-width: 768px) {
+  .beanstalk {
+    flex-direction: row;
+    min-height: auto;
+    height: 60px;
+    width: 100%;
+    max-width: 400px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    &__vine-container { display: none; }
+    &__ground { display: none; }
+    &__top { display: none; }
+    &__level-badge { margin-bottom: 0; }
+  }
+}
+

@@ -105,3 +105,19 @@ export interface MoveGeneration {
   playerRole: PlayerRole;
 }
 
+// --- Difficulty Levels ---
+
+/** Difficulty level configuration */
+export interface DifficultyLevel {
+  id: number;                    // 1-5
+  name: string;                  // 'Seedling', 'Sprout', etc.
+  icon: string;                  // emoji
+  maxDepth: number;              // minimax search depth
+  maxTimeMs: number;             // time limit per move
+  blunderChance: number;         // 0.0 - 1.0 (probability of random move)
+  useTranspositionTable: boolean;
+  useMoveSorting: boolean;
+  useLearning: boolean;          // whether AI learns from games at this level
+  winsToUnlock: number;          // cumulative wins needed to unlock
+  beanstalkStage: number;        // beanstalk growth stage (0-4)
+}

@@ -1,6 +1,6 @@
 # 🐺 Wolfs vs Dog – User Stories
 
-> A specifikáció (SPEC.md v4.0) alapján összeállított user story-k.
+> A specifikáció (SPEC.md v5.0) alapján összeállított user story-k.
 > Prioritás: 🔴 Must have | 🟡 Should have | 🟢 Nice to have
 
 ---
@@ -860,12 +860,512 @@
 
 | Prioritás | Darab | Leírás |
 |-----------|-------|--------|
-| 🔴 Must have | 30 | Alapvető játéklogika, UI, AI, validáció |
-| 🟡 Should have | 14 | Design polish, statisztikák, UX részletek |
-| 🟢 Nice to have | 1 | Victory/Defeat animáció |
-| **Összesen** | **45** | |
+| 🔴 Must have | 44 | Alapvető játéklogika, UI, AI, validáció, nehézségi szintek, paszuly |
+| 🟡 Should have | 20 | Design polish, statisztikák, UX részletek, animációk |
+| 🟢 Nice to have | 3 | Victory/Defeat animáció, haladó vizuálok |
+| **Összesen** | **67** | |
 
 ---
 
-*A user story-k a [SPEC.md](./SPEC.md) v4.0 specifikáció alapján készültek.*
+*A user story-k a [SPEC.md](./SPEC.md) v5.0 specifikáció alapján készültek.*
+
+---
+---
+
+# 🌱 Kiegészítő User Story-k – Nehézségi szintek & Égig érő paszuly
+
+> A SPEC.md v5.0 kiegészítései (15.8–15.9 fejezetek) alapján.
+> Ezek a story-k a meglévő kódbázisra épülnek (`src/types/`, `src/ai/`, `src/game/`, `src/hooks/`, `src/components/`, `src/styles/`).
+
+---
+
+## Epic 17: Nehézségi szintek – Típusok és konfiguráció
+
+### US-17.1 – `DifficultyLevel` típus definiálása
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném** a nehézségi szint konfigurációt típusbiztosan definiálni,
+> **hogy** az AI és a UI is egységesen használja.
+
+**Elfogadási kritériumok:**
+- [ ] `src/types/ai.ts`-ben új `DifficultyLevel` interface:
+  - `id: number` (1–5)
+  - `name: string` ('Seedling', 'Sprout', 'Sapling', 'Tree', 'Giant')
+  - `icon: string` (emoji: 🌱🌿🌳🌲🏰)
+  - `maxDepth: number`, `maxTimeMs: number`, `blunderChance: number`
+  - `useTranspositionTable: boolean`, `useMoveSorting: boolean`, `useLearning: boolean`
+  - `winsToUnlock: number`, `beanstalkStage: number` (0–4)
+- [ ] Nincs `any` típus
+
+---
+
+### US-17.2 – `DIFFICULTY_LEVELS` konstans tömb létrehozása
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném** az 5 szint konfigurációját egy konstans tömbben definiálni,
+> **hogy** mind az AI, mind a UI hivatkozhasson rá.
+
+**Elfogadási kritériumok:**
+- [ ] Új fájl: `src/ai/difficulty.ts`
+- [ ] `DIFFICULTY_LEVELS` tömb 5 elemmel, a SPEC.md 15.8 táblázat szerint:
+  - Seedling: `maxDepth:1`, `blunderChance:0.6`, `useLearning:false`, `winsToUnlock:0`
+  - Sprout: `maxDepth:3`, `blunderChance:0.35`, `winsToUnlock:3`
+  - Sapling: `maxDepth:5`, `blunderChance:0.15`, `winsToUnlock:8`
+  - Tree: `maxDepth:8`, `blunderChance:0.05`, `useLearning:true`, `winsToUnlock:15`
+  - Giant: `maxDepth:12`, `blunderChance:0.0`, `useLearning:true`, `winsToUnlock:25`
+- [ ] `getDifficultyById(id: number): DifficultyLevel` segédfüggvény
+- [ ] `getUnlockedLevels(totalWins: number): DifficultyLevel[]` segédfüggvény
+- [ ] `getHighestUnlockedLevel(totalWins: number): DifficultyLevel` segédfüggvény
+
+---
+
+### US-17.3 – `GameState` bővítése `difficultyLevel` mezővel
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném** a `GameState`-ben tárolni az aktuális nehézségi szintet,
+> **hogy** a reducer és a hookok tudják, milyen szinten játszik az AI.
+
+**Elfogadási kritériumok:**
+- [ ] `src/types/game.ts` → `GameState` kap egy `difficultyLevel: number` mezőt (default: `1`)
+- [ ] `GameAction` bővül: `| { type: 'SELECT_DIFFICULTY'; level: number }`
+- [ ] `INITIAL_STATE`-ben `difficultyLevel: 1`
+
+---
+
+### US-17.4 – `GameStats` bővítése szintlépés adatokkal
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném** a statisztikákban tárolni a legmagasabb feloldott szintet,
+> **hogy** a szintlépés perzisztens legyen.
+
+**Elfogadási kritériumok:**
+- [ ] `src/types/game.ts` → `GameStats` kap:
+  - `highestUnlockedLevel: number` (1–5, default: `1`)
+  - `selectedLevel: number` (1–5, default: `1`)
+- [ ] `src/hooks/useStats.ts` → `loadStats()` és `saveStats()` frissítve az új mezőkkel
+- [ ] `recordGame()` frissíti a `highestUnlockedLevel`-t a kumulatív `humanWins` alapján
+
+---
+
+## Epic 18: Nehézségi szintek – AI Blunder mechanizmus
+
+### US-18.1 – Blunder (hibázási) logika implementálása
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném**, hogy az AI alacsonyabb szinteken szándékosan hibázzon,
+> **hogy** a játék kezdőbarát legyen és ne legyen lehetetlen nyerni.
+
+**Elfogadási kritériumok:**
+- [ ] `src/ai/aiPlayer.ts`-ben új függvény: `computeAiMoveWithDifficulty(state, difficulty, learningData)`
+- [ ] A `blunderChance` alapján `Math.random() < blunderChance` esetén random lépés
+- [ ] Random lépés: `generateAllMoves(state, aiRole)` közül véletlenszerűen választ
+- [ ] Ha nem blunder: normál minimax a `difficulty.maxDepth` és `difficulty.maxTimeMs` limitekkel
+- [ ] `useLearning === false` esetén a `DEFAULT_WEIGHTS`-et használja (nem a tanult súlyokat)
+
+---
+
+### US-18.2 – `useAI` hook frissítése a nehézségi szinttel
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném** a `useAI` hookot úgy módosítani, hogy a `state.difficultyLevel` alapján válassza az AI konfigurációt,
+> **hogy** a nehézségi szint ténylegesen hasson az AI viselkedésére.
+
+**Elfogadási kritériumok:**
+- [ ] `src/hooks/useAI.ts` → a `doAiTurn` függvény olvassa ki a `state.difficultyLevel`-t
+- [ ] `getDifficultyById(state.difficultyLevel)` alapján konfigurálja a minimaxot
+- [ ] SETUP fázisban: wolf placement a difficulty-nek megfelelő weights-szel
+- [ ] PLAYING fázisban: `computeAiMoveWithDifficulty` hívás
+- [ ] A `useEffect` dependency array tartalmazza a `state.difficultyLevel`-t
+
+---
+
+### US-18.3 – Tanulás csak magasabb szinteken
+🟡 **Should have**
+
+> **Mint** rendszer,
+> **szeretném**, hogy az AI tanulás (weight update) csak a 4-5. szinten történjen,
+> **hogy** az alacsonyabb szintek konzisztensen könnyűek maradjanak.
+
+**Elfogadási kritériumok:**
+- [ ] `src/App.tsx` → `GAME_OVER` hatásban: `difficulty.useLearning` ellenőrzés
+- [ ] Ha `useLearning === false` → `updateWeightsAfterGame` nem fut le
+- [ ] Ha `useLearning === true` → normál tanulás (mint eddig)
+
+---
+
+## Epic 19: Nehézségi szintek – Reducer és állapotkezelés
+
+### US-19.1 – `SELECT_DIFFICULTY` action a reducerben
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném** a menüben szintet választani,
+> **hogy** az AI nehézségét szabályozhassam.
+
+**Elfogadási kritériumok:**
+- [ ] `src/game/gameState.ts` → `gameReducer` kezeli a `SELECT_DIFFICULTY` action-t:
+  - `state.difficultyLevel = action.level`
+  - Csak `menu` fázisban engedélyezett
+  - Validáció: az `action.level` 1–5 közötti, és a szint feloldott
+- [ ] `INITIAL_STATE.difficultyLevel = 1`
+
+---
+
+### US-19.2 – `SELECT_ROLE` action megtartja a kiválasztott szintet
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném**, hogy a `SELECT_ROLE` action ne írja felül a korábban kiválasztott `difficultyLevel`-t,
+> **hogy** a szintválasztás és a szerepválasztás egymástól független legyen.
+
+**Elfogadási kritériumok:**
+- [ ] `SELECT_ROLE` case → `difficultyLevel: state.difficultyLevel` (megmarad)
+- [ ] `NEW_GAME` case → `difficultyLevel` visszaáll a `stats.selectedLevel`-re (vagy 1-re)
+
+---
+
+## Epic 20: Nehézségi szintek – UI / DifficultySelector
+
+### US-20.1 – `DifficultySelector` komponens létrehozása
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném** a főmenüben látni az elérhető nehézségi szinteket,
+> **hogy** a tudásszintemhez illő kihívást válasszak.
+
+**Elfogadási kritériumok:**
+- [ ] Új komponens: `src/components/DifficultySelector.tsx`
+- [ ] Props: `levels: DifficultyLevel[]`, `currentLevel: number`, `totalWins: number`, `onSelect: (level: number) => void`
+- [ ] 5 gomb/sor megjelenítése, mindegyik az adott szint `icon` + `name` értékével
+- [ ] Feloldott szinteken: ✅ zöld pipa, kattintható
+- [ ] Zárolt szinteken: 🔒 lakat ikon, szürke, nem kattintható
+- [ ] Kiválasztott szint: `$warm-gold` border kiemelés
+- [ ] Zárolt szinteknél tooltip/felirat: *"Need X wins to unlock"*
+
+---
+
+### US-20.2 – `DifficultySelector` integrálása a `MainMenu`-be
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném** a szintválasztót a főmenüben a szerepválasztás felett látni,
+> **hogy** először szintet, aztán szerepet válasszak.
+
+**Elfogadási kritériumok:**
+- [ ] `src/components/MainMenu.tsx` → `<DifficultySelector>` renderelése a gombok felett
+- [ ] Props összekötése: `stats.humanWins`, `stats.selectedLevel`, `dispatch SELECT_DIFFICULTY`
+- [ ] A szintválasztás után a szerepválasztó gombok aktívak maradnak
+
+---
+
+### US-20.3 – Aktuális szint kijelzése a `StatusPanel`-en
+🟡 **Should have**
+
+> **Mint** játékos,
+> **szeretném** játék közben is látni, milyen szinten játszom,
+> **hogy** tudjam, milyen nehézségű az AI.
+
+**Elfogadási kritériumok:**
+- [ ] `src/components/StatusPanel.tsx` → a szint ikonja és neve megjelenik (pl. „🌱 Seedling")
+- [ ] A `state.difficultyLevel` alapján a `getDifficultyById` segítségével
+- [ ] Retro stílusú badge megjelenés
+
+---
+
+### US-20.4 – `DifficultySelector` SCSS stílus
+🟡 **Should have**
+
+> **Mint** fejlesztő,
+> **szeretném** a szintválasztót Cuphead-stílusúra formázni,
+> **hogy** vizuálisan illeszkedjen a menühöz.
+
+**Elfogadási kritériumok:**
+- [ ] Stílusok `src/styles/_menu.scss`-ben vagy új `_difficulty.scss`-ben
+- [ ] Retro gombok: `$hand-drawn-border`, `$retro-shadow`
+- [ ] Feloldott: `$forest-teal` tint
+- [ ] Zárolt: `opacity: 0.4`, szürke háttér
+- [ ] Kiválasztott: `$warm-gold` border + glow
+- [ ] Animáció: szintlépéskor rövid „unlock" felvillanás
+
+---
+
+## Epic 21: Égig érő paszuly – Beanstalk komponens
+
+### US-21.1 – `Beanstalk` komponens alapstruktúra
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném** a tábla mellett látni egy növekvő paszulyt,
+> **hogy** vizuálisan is lássam a fejlődésemet a játékban.
+
+**Elfogadási kritériumok:**
+- [ ] Új komponens: `src/components/Beanstalk.tsx`
+- [ ] Props: `stage: number` (0–4), `currentLevel: DifficultyLevel`, `totalWins: number`, `nextUnlockAt: number`
+- [ ] Renderel: `beanstalk__ground` (föld), `beanstalk__vine` (inda), `beanstalk__level-badge` (szint ikon)
+- [ ] A `stage` prop alapján CSS osztály: `beanstalk--stage-0` ... `beanstalk--stage-4`
+
+---
+
+### US-21.2 – Paszuly 5 növekedési fázisa
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném**, hogy a paszuly fokozatosan nőjön a szintlépésekkel,
+> **hogy** vizuálisan is érezhető legyen az előrehaladás.
+
+**Elfogadási kritériumok:**
+- [ ] **Stage 0 (Seedling):** kis csíra a földből – inda magassága 20px
+- [ ] **Stage 1 (Sprout):** fiatal hajtás 1 levéllel – inda 80px
+- [ ] **Stage 2 (Sapling):** kis fa 2-3 levéllel – inda 160px
+- [ ] **Stage 3 (Tree):** nagy fa 4+ levéllel – inda 260px
+- [ ] **Stage 4 (Giant):** fellegvár a felhők közt a paszuly tetején – inda 360px, castle + clouds emoji
+- [ ] Minden fázis között smooth height transition (`1s cubic-bezier(0.34, 1.56, 0.64, 1)`)
+
+---
+
+### US-21.3 – Paszuly levelek (rubber hose stílus)
+🟡 **Should have**
+
+> **Mint** játékos,
+> **szeretném**, hogy a paszulyon 1930-as rajzfilmstílusú levelek legyenek,
+> **hogy** a vizuál illeszkedjen a Cuphead-design rendszerhez.
+
+**Elfogadási kritériumok:**
+- [ ] `beanstalk__leaf` elemek: `$warm-gold` háttér, `$ink-black` körvonal, `border-radius: 50% 0 50% 0`
+- [ ] Levelek váltakozva bal és jobb oldalon az indán
+- [ ] Stage 0: 0 levél, Stage 1: 1 levél, Stage 2: 2-3, Stage 3: 4+, Stage 4: 5+ levél
+- [ ] `leafWiggle` animáció: enyhe forgatás (±5deg, 2.5s loop)
+
+---
+
+### US-21.4 – Fellegvár a felhők közt (Stage 4)
+🟡 **Should have**
+
+> **Mint** játékos,
+> **szeretném**, hogy az 5. szinten a paszuly tetején fellegvár jelenjen meg felhőkkel,
+> **hogy** a „Giant" szint vizuálisan is impozáns legyen.
+
+**Elfogadási kritériumok:**
+- [ ] `beanstalk__castle`: 🏰 emoji, `wobble` animáció, `text-shadow: 2px 2px 0 $ink-black`
+- [ ] `beanstalk__clouds`: ☁️ emoji, `cloudFloat` animáció (translateX ±5px, 4s loop)
+- [ ] Csak `stage === 4` esetén renderelődik
+
+---
+
+### US-21.5 – Level badge a paszuly tetején
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném** az aktuális szint ikonját a paszuly tetején látni,
+> **hogy** egyből tudjam, hol tartok.
+
+**Elfogadási kritériumok:**
+- [ ] `beanstalk__level-badge`: kör alakú badge (`$warm-cream` háttér, `$hand-drawn-border`, `$retro-shadow`)
+- [ ] Tartalmazza az aktuális szint emojit (🌱/🌿/🌳/🌲/🏰)
+- [ ] Pozíció: a paszuly tetején (absolute, top: 0)
+- [ ] Méret: 36×36px
+
+---
+
+### US-21.6 – Progresszió kijelzés a paszuly tövében
+🟡 **Should have**
+
+> **Mint** játékos,
+> **szeretném** látni, hány győzelem kell a következő szinthez,
+> **hogy** motivált legyek tovább játszani.
+
+**Elfogadási kritériumok:**
+- [ ] A paszuly tövénél (ground felett): szöveg: *„3/8 wins"* formátumban
+- [ ] Mini progress bar: kitöltött rész `$warm-gold`, háttér `$dark-walnut`
+- [ ] Ha az 5. szinten van → *„MAX LEVEL"* felirat `$vintage-yellow` színnel
+- [ ] Retro font (`$font-body`), kis méret (`0.75rem`)
+
+---
+
+## Epic 22: Égig érő paszuly – SCSS stílusok
+
+### US-22.1 – `_beanstalk.scss` létrehozása
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném** a paszuly stílusait egy dedikált SCSS partial-ban kezelni,
+> **hogy** karbantartható és a design rendszerrel konzisztens legyen.
+
+**Elfogadási kritériumok:**
+- [ ] Új fájl: `src/styles/_beanstalk.scss`
+- [ ] `@use 'variables' as v;` és `@use 'sass:color';`
+- [ ] `.beanstalk` konténer: `width: 80px`, `min-height: 400px`, flex column, align center
+- [ ] `.beanstalk__ground`: `$dark-walnut`, `border-radius: 50% 50% 0 0`
+- [ ] `.beanstalk__vine`: `$forest-teal`, `$ink-black` border, `sway` animáció
+- [ ] `.beanstalk__leaf`: `$warm-gold`, levél alakú `border-radius`, `leafWiggle` animáció
+- [ ] `.beanstalk__castle`, `.beanstalk__clouds`: emoji elemek animációkkal
+- [ ] `.beanstalk__level-badge`: retro badge stílus
+- [ ] `.beanstalk--stage-0` ... `.beanstalk--stage-4`: fázisonkénti inda magasság
+- [ ] `main.scss`-be felvéve: `@use 'beanstalk';`
+
+---
+
+### US-22.2 – Paszuly animációk hozzáadása
+🟡 **Should have**
+
+> **Mint** fejlesztő,
+> **szeretném** a paszuly-specifikus animációkat az `_animations.scss`-be felvenni,
+> **hogy** egy helyen legyenek az összes keyframe-ek.
+
+**Elfogadási kritériumok:**
+- [ ] `src/styles/_animations.scss`-be új keyframe-ek:
+  - `@keyframes sway` – inda lassú ringatása (rotate ±1deg, 3s)
+  - `@keyframes leafWiggle` – levelek ringása (rotate ±5deg, 2.5s)
+  - `@keyframes cloudFloat` – felhők úszása (translateX ±5px, 4s)
+  - `@keyframes beanstalkGrow` – szintlépéskor felfelé növekedés (height 0 → target, bounce easing)
+- [ ] A grow animáció csak szintváltáskor fut le (JS-ből CSS class toggle)
+
+---
+
+## Epic 23: Égig érő paszuly – Layout integráció
+
+### US-23.1 – Paszuly elhelyezése a tábla mellett (desktop)
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném** a paszulyt a játéktábla jobb oldalán látni,
+> **hogy** ne takarja el a táblát, de jól látható legyen.
+
+**Elfogadási kritériumok:**
+- [ ] Az `App.tsx` vagy `GameBoard.tsx` layout: tábla + paszuly egymás mellett
+- [ ] Desktop (>768px): flex row, tábla bal oldalon, paszuly jobb oldalon
+- [ ] A paszuly vertikálisan a tábla aljához igazodik (ground = tábla alja)
+- [ ] Gap: ~16px a tábla és a paszuly közt
+
+---
+
+### US-23.2 – Paszuly elhelyezése a tábla alatt (mobil)
+🟡 **Should have**
+
+> **Mint** mobil játékos,
+> **szeretném** a paszulyt a tábla alatt horizontálisan látni,
+> **hogy** kis képernyőn is jól nézzen ki.
+
+**Elfogadási kritériumok:**
+- [ ] Mobil (<768px): flex column, paszuly a tábla alatt
+- [ ] Horizontális layout: paszuly ikon + szint név + progress bar egy sorban
+- [ ] Kompaktabb megjelenés: paszuly magasság max 60px
+- [ ] CSS `@media (max-width: 768px)` breakpoint
+
+---
+
+### US-23.3 – Paszuly integrálása az `App.tsx`-be
+🔴 **Must have**
+
+> **Mint** fejlesztő,
+> **szeretném** a `Beanstalk` komponenst az `App.tsx`-be bekötni,
+> **hogy** a játék képernyőn megjelenjen.
+
+**Elfogadási kritériumok:**
+- [ ] `App.tsx` → `Beanstalk` renderelése a `setup`/`playing`/`gameOver` fázisoknál
+- [ ] Props: `stage` = `getDifficultyById(state.difficultyLevel).beanstalkStage`
+- [ ] `currentLevel` = `getDifficultyById(state.difficultyLevel)`
+- [ ] `totalWins` = `stats.humanWins`
+- [ ] `nextUnlockAt` = a következő szint `winsToUnlock` értéke (vagy 0 ha max szinten)
+
+---
+
+## Epic 24: Szintlépés vizuális feedback
+
+### US-24.1 – Szintlépés felismerése és értesítés
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném** tudni, ha új szintet oldottam fel győzelem után,
+> **hogy** motiváló visszajelzést kapjak.
+
+**Elfogadási kritériumok:**
+- [ ] `GameOverModal`-ban vagy külön értesítésben: *„🎉 New level unlocked: Sprout 🌿!"*
+- [ ] Csak akkor jelenik meg, ha a `humanWins` **épp elérte** egy szint `winsToUnlock` küszöbét
+- [ ] Az üzenet tartalmazza az új szint nevét és ikonját
+- [ ] Vintage stílusú kijelzés (`$warm-gold` szín, `$font-title` betűtípus)
+
+---
+
+### US-24.2 – Paszuly grow animáció szintlépésnél
+🟡 **Should have**
+
+> **Mint** játékos,
+> **szeretném** látni, ahogy a paszuly megnő szintlépéskor,
+> **hogy** vizuálisan is átéljem az előrelépést.
+
+**Elfogadási kritériumok:**
+- [ ] Szintlépéskor a `beanstalk__vine` `height` transition fut le (1s bounce easing)
+- [ ] Az új levél(ek) `fadeIn` animációval jelennek meg
+- [ ] Stage 4 elérésekor a castle + clouds `fadeInScale` animációval jelenik meg
+- [ ] A grow animáció a `GameOverModal` megjelenésekor indul
+
+---
+
+### US-24.3 – Szintlépés megjelenítése a `GameOverModal`-ban
+🟡 **Should have**
+
+> **Mint** játékos,
+> **szeretném** a játék végén a `GameOverModal`-ban látni a szintlépést és a paszuly új állapotát,
+> **hogy** egy helyen kapjak összefoglaló visszajelzést.
+
+**Elfogadási kritériumok:**
+- [ ] Ha szintlépés történt: a modal tartalmaz egy *„Level Up!"* szekciót
+- [ ] Kis `Beanstalk` preview az új stage-dzsel
+- [ ] Progresszió: *„Next: Sapling 🌳 – 5 more wins"*
+- [ ] Ha max szinten: *„🏰 You've reached the top of the beanstalk!"*
+
+---
+
+## Epic 25: Szintlépés perzisztencia
+
+### US-25.1 – Kiválasztott szint mentése localStorage-ba
+🔴 **Must have**
+
+> **Mint** játékos,
+> **szeretném**, hogy a szintválasztásom megmaradjon böngésző újraindítás után,
+> **hogy** ne kelljen minden alkalommal újra beállítanom.
+
+**Elfogadási kritériumok:**
+- [ ] `src/hooks/useStats.ts` → `GameStats.selectedLevel` mentése/betöltése
+- [ ] `GameStats.highestUnlockedLevel` frissítése `recordGame()`-ben a `humanWins` alapján
+- [ ] Default: `selectedLevel: 1`, `highestUnlockedLevel: 1`
+- [ ] `loadStats()` → ha `selectedLevel > highestUnlockedLevel`, visszaáll `highestUnlockedLevel`-re
+
+---
+
+### US-25.2 – Szintlépés küszöb kalkuláció
+🔴 **Must have**
+
+> **Mint** rendszer,
+> **szeretném** a szintlépés küszöböket a `DIFFICULTY_LEVELS` alapján kiszámítani,
+> **hogy** az egész rendszer a konfigurációból legyen vezérelve.
+
+**Elfogadási kritériumok:**
+- [ ] `getHighestUnlockedLevel(totalWins)`: végigmegy a `DIFFICULTY_LEVELS`-en, visszaadja a legmagasabb `winsToUnlock <= totalWins` szintet
+- [ ] `getNextLevelUnlockWins(currentLevel, totalWins)`: visszaadja a következő szint `winsToUnlock` értékét, vagy `null` ha max
+- [ ] Tesztelve a küszöb értékekkel: 0→1, 3→2, 8→3, 15→4, 25→5
+
+---
+
+## Összesítő – Új story-k
+
+| Epic | Téma | Story-k | Prioritás bontás |
+|------|------|---------|-----------------|
+| 17 | Típusok & konfig | 4 | 🔴×4 |
+| 18 | AI Blunder mechanizmus | 3 | 🔴×2, 🟡×1 |
+| 19 | Reducer & állapotkezelés | 2 | 🔴×2 |
+| 20 | DifficultySelector UI | 4 | 🔴×2, 🟡×2 |
+| 21 | Beanstalk komponens | 6 | 🔴×3, 🟡×3 |
+| 22 | Beanstalk SCSS | 2 | 🔴×1, 🟡×1 |
+| 23 | Layout integráció | 3 | 🔴×2, 🟡×1 |
+| 24 | Szintlépés feedback | 3 | 🔴×1, 🟡×2 |
+| 25 | Perzisztencia | 2 | 🔴×2 |
+| **Összesen** | | **29** | **🔴×19, 🟡×10** |
 

@@ -55,7 +55,37 @@
     font-family: v.$font-body;
     font-size: 1.1rem;
     color: v.$sepia-brown;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  &__level-up {
+    background: rgba(v.$warm-gold, 0.15);
+    border: 2px solid v.$warm-gold;
+    border-radius: 10px;
+    padding: 8px 16px;
+    margin-bottom: 0.75rem;
+    animation: levelUpFlash 0.6s ease forwards;
+  }
+
+  &__level-up-text {
+    font-family: v.$font-title;
+    font-size: 1.1rem;
+    color: v.$warm-gold;
+    text-shadow: 1px 1px 0 v.$ink-black;
+  }
+
+  &__next-level {
+    font-family: v.$font-body;
+    font-size: 0.9rem;
+    color: v.$sepia-brown;
+    margin-bottom: 0.75rem;
+    opacity: 0.8;
+
+    &--max {
+      color: v.$warm-gold;
+      font-weight: bold;
+      opacity: 1;
+    }
   }
 
   &__actions {

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { GameStats, PlayerRole } from '../types/game';
+import { getHighestUnlockedLevel } from '../ai/difficulty';
 
 const STATS_STORAGE_KEY = 'wolfs-vs-dog-stats';
 
@@ -12,6 +13,8 @@ function getDefaultStats(): GameStats {
     humanWinsAsDog: 0,
     aiWinsAsWolf: 0,
     aiWinsAsDog: 0,
+    highestUnlockedLevel: 1,
+    selectedLevel: 1,
   };
 }
 
@@ -19,7 +22,15 @@ function loadStats(): GameStats {
   try {
     const raw = localStorage.getItem(STATS_STORAGE_KEY);
     if (!raw) return getDefaultStats();
-    return JSON.parse(raw) as GameStats;
+    const parsed = JSON.parse(raw) as GameStats;
+    // Ensure new fields have defaults for backwards compatibility
+    if (!parsed.highestUnlockedLevel) parsed.highestUnlockedLevel = 1;
+    if (!parsed.selectedLevel) parsed.selectedLevel = 1;
+    // Ensure selectedLevel doesn't exceed unlocked
+    if (parsed.selectedLevel > parsed.highestUnlockedLevel) {
+      parsed.selectedLevel = parsed.highestUnlockedLevel;
+    }
+    return parsed;
   } catch {
     return getDefaultStats();
   }
@@ -40,9 +51,11 @@ export function useStats() {
     (winner: PlayerRole, humanRole: PlayerRole) => {
       setStats((prev) => {
         const humanWon = winner === humanRole;
+        const newHumanWins = prev.humanWins + (humanWon ? 1 : 0);
+        const newHighest = getHighestUnlockedLevel(newHumanWins);
         const newStats: GameStats = {
           totalGames: prev.totalGames + 1,
-          humanWins: prev.humanWins + (humanWon ? 1 : 0),
+          humanWins: newHumanWins,
           aiWins: prev.aiWins + (humanWon ? 0 : 1),
           humanWinsAsWolf:
             prev.humanWinsAsWolf +
@@ -56,6 +69,8 @@ export function useStats() {
           aiWinsAsDog:
             prev.aiWinsAsDog +
             (!humanWon && humanRole === 'wolfPlayer' ? 1 : 0),
+          highestUnlockedLevel: newHighest.id,
+          selectedLevel: prev.selectedLevel,
         };
         saveStats(newStats);
         return newStats;
@@ -64,6 +79,14 @@ export function useStats() {
     []
   );
 
-  return { stats, recordGame };
-}
+  const setSelectedLevel = useCallback((level: number) => {
+    setStats((prev) => {
+      const clamped = Math.min(level, prev.highestUnlockedLevel);
+      const newStats = { ...prev, selectedLevel: clamped };
+      saveStats(newStats);
+      return newStats;
+    });
+  }, []);
 
+  return { stats, recordGame, setSelectedLevel };
+}

@@ -1,14 +1,14 @@
 # 🐺 Wolfs vs Dog – Részletes Játék Specifikáció
 
-> Verzió: 4.0
-> Utolsó frissítés: 2026-03-26
+> Verzió: 5.0
+> Utolsó frissítés: 2026-03-27
 
 ---
 
 ## 1. Játék áttekintés
 
 ### 1.1 Koncepció
-Egyjátékos, körökre osztott stratégiai táblás játék **AI ellenféllel**, amely egy 8×8-as sakktábla-szerű felületen zajlik. A játékos szabadon választhat, hogy farkassal vagy kutyákkal szeretne játszani – a másik oldalt mindig a **számítógép (AI)** irányítja. Az AI egy **tanuló algoritmus**, amely partikról partira fejlődik és nehéz legyőzni. A tábla és a figurák **HTML elemekből és SCSS stílusokból** épülnek fel (nincs Canvas API) – ez gyorsabb renderelést és alacsonyabb memóriahasználatot biztosít. A felületet **egérrel (kattintással)** kell irányítani: a játékos rákattint a figurájára, majd kiválasztja a célmezőt. **Visszavonás nincs** – mint a sakkban, minden lépés végleges.
+Egyjátékos, körökre osztott stratégiai táblás játék **fokozatosan nehezedő AI ellenféllel**, amely egy 8×8-as sakktábla-szerű felületen zajlik. A játékos szabadon választhat, hogy farkassal vagy kutyákkal szeretne játszani – a másik oldalt mindig a **számítógép (AI)** irányítja. Az AI **5 nehézségi szinten** játszik: a legkönnyebb szinttől (nagyon kezdő, szinte random lépések) fokozatosan erősödik az egyre nehezebb szinteken át. A szintek közötti haladást egy **égig érő paszuly (Magic Beanstalk)** vizualizálja a tábla mellett, 1930-as évek rajzfilmstílusban. A tábla és a figurák **HTML elemekből és SCSS stílusokból** épülnek fel (nincs Canvas API) – ez gyorsabb renderelést és alacsonyabb memóriahasználatot biztosít. A felületet **egérrel (kattintással)** kell irányítani: a játékos rákattint a figurájára, majd kiválasztja a célmezőt. **Visszavonás nincs** – mint a sakkban, minden lépés végleges.
 
 ### 1.2 Játékosok
 | Játékos | Típus | Szerep | Figurák | Cél |
@@ -557,6 +557,7 @@ src/
 │   ├── _menu.scss          # Main Menu: vintage poster layout
 │   ├── _status.scss        # Status panel: pergamen háttér, retro font
 │   ├── _modal.scss         # Game Over modal: victory / defeat design
+│   ├── _beanstalk.scss     # Égig érő paszuly: vine, leaves, castle, grow animation
 │   └── main.scss           # Fő SCSS entry point (@use imports)
 ```
 
@@ -689,13 +690,15 @@ src/
 │   └── (jövőbeli sprite-ok, hangok)
 │
 ├── components/                # React UI komponensek
-│   ├── MainMenu.tsx           # Kezdőképernyő, szerepválasztás (vintage poster)
+│   ├── MainMenu.tsx           # Kezdőképernyő, szerepválasztás + szintválasztás (vintage poster)
 │   ├── GameBoard.tsx          # HTML grid tábla renderelés (fa-textúra)
 │   ├── Square.tsx             # Egy mező komponens (CSS osztályokkal)
 │   ├── Piece.tsx              # Figura komponens (rubber hose CSS art)
 │   ├── StatusPanel.tsx        # Játék státusz kijelzése (pergamen panel)
 │   ├── GameOverModal.tsx      # Játék vége modal/overlay (vintage)
-│   └── StatsDisplay.tsx       # Statisztika kijelző (win/loss)
+│   ├── StatsDisplay.tsx       # Statisztika kijelző (win/loss)
+│   ├── Beanstalk.tsx          # Égig érő paszuly progresszió vizuál (1930s cartoon)
+│   └── DifficultySelector.tsx # Nehézségi szint választó (szintlépés rendszer)
 │
 ├── game/                      # Játéklogika (React-mentes, tiszta függvények)
 │   ├── board.ts               # Tábla inicializálás, mező-kalkulációk
@@ -795,6 +798,7 @@ export interface GameState {
   winner: PlayerRole | null;
   message: string;
   isAiTurn: boolean;              // true when AI is "thinking"
+  difficultyLevel: number;        // 1-5 (current AI difficulty)
   lastMove: {
     from: Position;
     to: Position;
@@ -806,6 +810,7 @@ export interface GameState {
 
 export type GameAction =
   | { type: 'SELECT_ROLE'; role: PlayerRole }
+  | { type: 'SELECT_DIFFICULTY'; level: number }
   | { type: 'PLACE_WOLF'; position: Position }
   | { type: 'SELECT_PIECE'; pieceId: string }
   | { type: 'DESELECT_PIECE' }
@@ -825,6 +830,8 @@ export interface GameStats {
   humanWinsAsDog: number;
   aiWinsAsWolf: number;
   aiWinsAsDog: number;
+  highestUnlockedLevel: number;   // 1-5 (highest difficulty unlocked)
+  selectedLevel: number;          // 1-5 (currently selected difficulty)
 }
 
 // --- Rendering (SCSS controls visuals, no CanvasConfig needed) ---
@@ -1284,7 +1291,6 @@ const INITIAL_STATE: GameState = {
 - 🌐 Online multiplayer (WebSocket)
 - ⏱️ Időlimit per lépés
 - 🏆 Ranglétra / Elo-rendszer
-- 🧠 AI nehézségi szintek (Easy / Medium / Hard)
 
 ---
 
@@ -1774,17 +1780,339 @@ function useAI(
 }
 ```
 
-### 15.8 AI nehézség jellemzők
+### 15.8 AI nehézségi szintek (Difficulty Levels)
 
-| Aspektus | Érték | Miért nehéz? |
-|----------|-------|--------------|
-| **Keresési mélység** | 8-12 lépés előre | Messzire lát a játékfában |
-| **Alpha-beta vágás** | ~70-90% node-ot levág | Gyors, mélyre tud menni |
-| **Move ordering** | Transp. table + heurisztika | Még több vágás |
-| **Tranzíciós tábla** | 100K entry cache | Nem számol kétszer |
-| **Tanuló súlyok** | Játékról játékra javul | Adaptálódik a játékos stílusához |
-| **Position memory** | 500 megjegyzett pozíció | "Emlékszik" a korábbi játékokra |
-| **Wolf placement** | Értékelés-alapú | Stratégiailag optimális kezdés |
+Az AI **5 nehézségi szinten** játszhat. A játékos az 1. szinten (Seedling) kezd, és győzelmek gyűjtésével léphet feljebb. Ez biztosítja, hogy a játék **kezdők számára is élvezhető**, de végül komoly kihívást nyújtson.
+
+#### Szintek áttekintése
+
+| # | Szint neve | Ikon | Keresési mélység | Hibázási % | Leírás |
+|---|-----------|------|-----------------|------------|--------|
+| 1 | **Seedling** 🌱 | Kis csíra | 1 | 60% | Nagyon kezdő – szinte random, gyakran hibázik |
+| 2 | **Sprout** 🌿 | Fiatal hajtás | 2-3 | 35% | Kezdő – néha jól lép, de könnyen kijátszható |
+| 3 | **Sapling** 🌳 | Kis fa | 4-5 | 15% | Közepes – már gondolkodik, de vannak gyenge pontjai |
+| 4 | **Tree** 🌲 | Nagy fa | 6-8 | 5% | Nehéz – ritkán hibázik, stratégiailag erős |
+| 5 | **Giant** 🏰 | Fellegvár | 10-12 | 0% | Mester – teljes minimax erő + tanulás, nagyon nehéz legyőzni |
+
+#### Hibázási mechanizmus (Blunder System)
+Alacsonyabb szinteken az AI **szándékosan hibázik** egy adott százalékban:
+- A minimax kiszámítja a legjobb lépést
+- A `blunderChance` alapján eldönti: a legjobb lépést teszi, vagy random választ az elérhető lépések közül
+- Magasabb szinteken ez a hibázás csökken, míg 5. szinten eltűnik
+
+```typescript
+/** Difficulty level configuration */
+export interface DifficultyLevel {
+  id: number;                    // 1-5
+  name: string;                  // 'Seedling', 'Sprout', etc.
+  icon: string;                  // emoji
+  maxDepth: number;              // minimax search depth
+  maxTimeMs: number;             // time limit per move
+  blunderChance: number;         // 0.0 - 1.0 (probability of making a random move)
+  useTranspositionTable: boolean;
+  useMoveSorting: boolean;
+  useLearning: boolean;          // whether AI learns from games at this level
+  winsToUnlock: number;          // cumulative wins needed to unlock this level
+  beanstalStage: number;         // beanstalk growth stage (0-4)
+}
+
+const DIFFICULTY_LEVELS: DifficultyLevel[] = [
+  {
+    id: 1, name: 'Seedling', icon: '🌱',
+    maxDepth: 1, maxTimeMs: 500, blunderChance: 0.6,
+    useTranspositionTable: false, useMoveSorting: false, useLearning: false,
+    winsToUnlock: 0, beanstalStage: 0,
+  },
+  {
+    id: 2, name: 'Sprout', icon: '🌿',
+    maxDepth: 3, maxTimeMs: 800, blunderChance: 0.35,
+    useTranspositionTable: false, useMoveSorting: false, useLearning: false,
+    winsToUnlock: 3, beanstalStage: 1,
+  },
+  {
+    id: 3, name: 'Sapling', icon: '🌳',
+    maxDepth: 5, maxTimeMs: 1200, blunderChance: 0.15,
+    useTranspositionTable: true, useMoveSorting: false, useLearning: false,
+    winsToUnlock: 8, beanstalStage: 2,
+  },
+  {
+    id: 4, name: 'Tree', icon: '🌲',
+    maxDepth: 8, maxTimeMs: 1800, blunderChance: 0.05,
+    useTranspositionTable: true, useMoveSorting: true, useLearning: true,
+    winsToUnlock: 15, beanstalStage: 3,
+  },
+  {
+    id: 5, name: 'Giant', icon: '🏰',
+    maxDepth: 12, maxTimeMs: 2500, blunderChance: 0.0,
+    useTranspositionTable: true, useMoveSorting: true, useLearning: true,
+    winsToUnlock: 25, beanstalStage: 4,
+  },
+];
+```
+
+#### Szintlépés logika
+- A játékos **kumulatív győzelmeinek** száma határozza meg az elérhető szinteket
+- Minden szintnek van egy `winsToUnlock` küszöbe
+- Az aktuálisan **legmagasabb elérhető szint** automatikusan kiválasztásra kerül, de a játékos bármely már feloldott szintet választhatja a menüben
+- A szint a **Main Menu**-ben választható, és a státusz panelen is megjelenik
+
+```
+Wins:   0  →  Seedling 🌱 (unlocked)
+Wins:   3  →  Sprout 🌿 (unlocked)
+Wins:   8  →  Sapling 🌳 (unlocked)
+Wins:  15  →  Tree 🌲 (unlocked)
+Wins:  25  →  Giant 🏰 (unlocked)
+```
+
+#### AI lépés végrehajtás szintfüggően
+```typescript
+function computeAiMoveWithDifficulty(
+  state: GameState,
+  difficulty: DifficultyLevel,
+  learningData: LearningData
+): AiMove {
+  // 1. Blunder check: should AI make a random move?
+  if (Math.random() < difficulty.blunderChance) {
+    const allMoves = generateAllMoves(state, aiRole);
+    return allMoves[Math.floor(Math.random() * allMoves.length)];
+  }
+
+  // 2. Normal minimax with difficulty-limited config
+  const config: MinimaxConfig = {
+    maxDepth: difficulty.maxDepth,
+    maxTimeMs: difficulty.maxTimeMs,
+    useIterativeDeepening: true,
+    useTranspositionTable: difficulty.useTranspositionTable,
+    useMoveSorting: difficulty.useMoveSorting,
+  };
+
+  const weights = difficulty.useLearning
+    ? learningData.weights
+    : DEFAULT_WEIGHTS;
+
+  return computeAiMove(state, { role: aiRole, minimaxConfig: config }, { ...learningData, weights });
+}
+```
+
+---
+
+### 15.9 Égig érő paszuly – Progresszió vizualizáció (Magic Beanstalk)
+
+> A játékos előrehaladását egy **1930-as évek rajzfilmstílusú égig érő paszuly** jeleníti meg a tábla mellett. Ahogy a játékos szintet lép, a paszuly egyre magasabbra nő – a csírától a fellegvárig.
+
+#### 15.9.1 Koncepció
+- A paszuly a **játék képernyő jobb oldalán** (desktop) vagy a **tábla alatt** (mobil) jelenik meg
+- **5 növekedési fázisa** van, a nehézségi szinteknek megfelelően
+- Minden fázis egy **CSS art elem**, 1930-as évek cartoon stílusban:
+  - Vastag, egyenetlen körvonalak (`$ink-black`)
+  - Gumicsöves (rubber hose) inda-kacskaringók
+  - Vintage színek (`$forest-teal` inda, `$warm-gold` levelek)
+  - Enyhe wobble/sway animáció (mint egy rajzfilmben fújja a szél)
+
+#### 15.9.2 Paszuly fázisok
+
+```
+Stage 0 – Seedling 🌱              Stage 1 – Sprout 🌿
+                                    
+     🌱                                 🌿
+    ╱ ╲                                │ 🍃
+   ╱   ╲                              ╱
+  ╱     ╲                            │
+ ─────────                          ─────────
+  (föld)                             (föld)
+
+
+Stage 2 – Sapling 🌳              Stage 3 – Tree 🌲
+                                    
+      🍃                               🍃  🍃
+     ╱                                ╱    ╲
+    │  🍃                        🍃 │      │
+    ╲ ╱                             ╲ ╱    │ 🍃
+     │                               │    ╱
+     │  🍃                           │  ╱
+    ╱                                │ │
+   │                                 ╲╱
+  ─────────                          ─────────
+   (föld)                             (föld)
+
+
+Stage 4 – Giant 🏰
+
+         ☁️ 🏰 ☁️          ← fellegvár a felhők közt
+        ╱  │  ╲
+   🍃 │   │   │ 🍃
+      ╲   │  ╱
+       │  │ │   🍃
+  🍃   │  ╲╱
+       ╲  │
+        │ │  🍃
+   🍃  ╱  │
+       │  ╲
+       ╲   │
+        ─────────
+         (föld)
+```
+
+#### 15.9.3 Vizuális megvalósítás (CSS art + SCSS)
+
+```scss
+// src/styles/_beanstalk.scss
+
+.beanstalk {
+  position: relative;
+  width: 80px;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  z-index: 2;
+
+  // Dirt/ground base
+  &__ground {
+    width: 60px;
+    height: 20px;
+    background: $dark-walnut;
+    border: 2px solid $ink-black;
+    border-radius: 50% 50% 0 0;
+  }
+
+  // Main vine (grows upward)
+  &__vine {
+    width: 6px;
+    background: $forest-teal;
+    border: 2px solid $ink-black;
+    border-radius: 3px;
+    transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: sway 3s ease-in-out infinite;
+  }
+
+  // Leaves (rubber hose style)
+  &__leaf {
+    position: absolute;
+    width: 20px;
+    height: 14px;
+    background: $warm-gold;
+    border: 2px solid $ink-black;
+    border-radius: 50% 0 50% 0;
+    animation: leafWiggle 2.5s ease-in-out infinite;
+  }
+
+  // Castle in the clouds (stage 4)
+  &__castle {
+    font-size: 1.5rem;
+    animation: wobble 3s ease-in-out infinite;
+    text-shadow: 2px 2px 0 $ink-black;
+  }
+
+  &__clouds {
+    font-size: 1.2rem;
+    opacity: 0.7;
+    animation: cloudFloat 4s ease-in-out infinite;
+  }
+
+  // Stage-specific heights
+  &--stage-0 .beanstalk__vine { height: 20px; }
+  &--stage-1 .beanstalk__vine { height: 80px; }
+  &--stage-2 .beanstalk__vine { height: 160px; }
+  &--stage-3 .beanstalk__vine { height: 260px; }
+  &--stage-4 .beanstalk__vine { height: 360px; }
+
+  // Level badge on the stalk
+  &__level-badge {
+    position: absolute;
+    top: 0;
+    background: $warm-cream;
+    border: $hand-drawn-border;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    box-shadow: $retro-shadow;
+    z-index: 3;
+  }
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(1deg); }
+}
+
+@keyframes leafWiggle {
+  0%, 100% { transform: rotate(-5deg); }
+  50% { transform: rotate(5deg); }
+}
+
+@keyframes cloudFloat {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+```
+
+#### 15.9.4 React komponens (`src/components/Beanstalk.tsx`)
+
+```typescript
+interface BeanstalkProps {
+  stage: number;          // 0-4 (matches difficulty level - 1)
+  currentLevel: DifficultyLevel;
+  totalWins: number;
+  nextUnlockAt: number;   // wins needed for next level
+}
+```
+
+- A komponens **CSS osztályokkal** váltja a növekedési fázisokat
+- Szintlépéskor **grow animáció** (a paszuly felfelé nő, bounce easing-gel)
+- Minden levelre 1930-as cartoon stílusú `wobble` animáció
+- Az aktuális szint ikonja egy **badge**-ként jelenik meg a paszuly tetején
+- A progresszió (hány win kell a következő szinthez) egy kis **progress bar**-ral jelenik meg a paszuly tövében
+
+#### 15.9.5 Layout integráció
+
+```
+Desktop (>768px):                     Mobil (<768px):
+┌────┬────────────────┬────┐          ┌────────────────────┐
+│    │                │ 🌱 │          │    8×8 TÁBLA       │
+│    │   8×8 TÁBLA    │ │  │          │                    │
+│    │                │ │  │          └────────────────────┘
+│    │                │🍃│  │          ┌────────────────────┐
+│    │                │ │  │          │  🌱──── Seedling    │
+│    │                │ │  │          │  ████░░░░  3/8 wins │
+└────┴────────────────┴────┘          └────────────────────┘
+```
+
+#### 15.9.6 Szintválasztás a menüben
+
+A Main Menu-ben a szerepválasztás **előtt** megjelenik a szintválasztó:
+
+```
+┌──────────────────────────────────────────┐
+│            🐺  WOLFS vs DOG  🐶          │
+│                                          │
+│   ┌────────────────────────────────┐     │
+│   │  🌱 Seedling  ✅               │     │
+│   │  🌿 Sprout    ✅               │     │
+│   │  🌳 Sapling   🔒 (need 8 wins)│     │
+│   │  🌲 Tree      🔒              │     │
+│   │  🏰 Giant     🔒              │     │
+│   └────────────────────────────────┘     │
+│                                          │
+│          Choose your side:               │
+│     ┌──────────────────────────┐         │
+│     │   🐺 Play as Wolf        │         │
+│     └──────────────────────────┘         │
+│     ┌──────────────────────────┐         │
+│     │   🐶 Play as Dogs        │         │
+│     └──────────────────────────┘         │
+└──────────────────────────────────────────┘
+```
+
+- **Feloldott szintek:** kattinthatóak, zöld pipa ✅
+- **Zárolt szintek:** szürke, lakat ikon 🔒, tooltip: "Need X wins to unlock"
+- **Kiválasztott szint:** arany kiemelés (`$warm-gold` border)
+- A szint **perzisztálódik** localStorage-ban
 
 ---
 
@@ -1820,6 +2148,8 @@ function useAI(
 8. Minimax + alpha-beta (`src/ai/minimax.ts`)
 9. Learning store (`src/ai/learningStore.ts`)
 10. AI player belépési pont (`src/ai/aiPlayer.ts`)
+11. Nehézségi szintek konfigurálása (`src/ai/difficulty.ts`)
+12. Blunder (hibázási) mechanizmus az alacsonyabb szintekhez
 
 ### Fázis 3: SCSS Design rendszer (Cuphead stílus)
 11. SCSS változók, paletta (`src/styles/_variables.scss`)
@@ -1838,21 +2168,25 @@ function useAI(
 20. `Square` komponens (mező)
 21. `Piece` komponens (CSS art figurák)
 22. `GameBoard` komponens (CSS Grid tábla)
-23. `MainMenu` komponens (vintage poszter)
-24. `StatusPanel` komponens (pergamen szalag)
-25. `GameOverModal` komponens (vintage kártya)
-26. `StatsDisplay` komponens (retro ponttábla)
-27. `App.tsx` összedrótozás (screen routing + overlays)
+23. `MainMenu` komponens (vintage poszter + szintválasztó)
+24. `DifficultySelector` komponens (szint gombok, lock/unlock)
+25. `Beanstalk` komponens (égig érő paszuly CSS art, 5 fázis)
+26. `StatusPanel` komponens (pergamen szalag + szint kijelzés)
+27. `GameOverModal` komponens (vintage kártya + paszuly grow animáció)
+28. `StatsDisplay` komponens (retro ponttábla)
+29. `App.tsx` összedrótozás (screen routing + overlays)
 
 ### Fázis 6: Polish & Testing
-28. Cuphead design finomhangolás (grain, vignette, wobble)
-29. Animációk polish (bounce, squash, slide timing)
-30. AI delay és UX finomhangolás
-31. Responsive méretezés tesztelés
-32. Edge case-ek tesztelése
-33. AI tuning (alapértelmezett súlyok finomhangolása)
-34. Statisztikák perzisztencia tesztelés
-35. Code review, refaktor
+30. Cuphead design finomhangolás (grain, vignette, wobble)
+31. Animációk polish (bounce, squash, slide timing)
+32. Paszuly növekedés animáció (szintlépéskor smooth grow)
+33. AI delay és UX finomhangolás
+34. Nehézségi szintek balansz tesztelés
+35. Responsive méretezés tesztelés (desktop: paszuly jobb oldalt, mobil: alul)
+36. Edge case-ek tesztelése
+37. AI tuning (alapértelmezett súlyok finomhangolása szintenként)
+38. Statisztikák + szintlépés perzisztencia tesztelés
+39. Code review, refaktor
 
 ---
 

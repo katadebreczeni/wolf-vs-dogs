@@ -1,0 +1,70 @@
+@use 'variables' as v;
+
+.difficulty-selector {
+  width: 100%;
+  max-width: 300px;
+
+  &__title {
+    font-family: v.$font-body;
+    font-size: 1.1rem;
+    color: v.$sepia-brown;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  &__levels {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__level {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 2px solid v.$ink-black;
+    border-radius: 8px;
+    background: v.$warm-cream;
+    font-family: v.$font-body;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all v.$transition-speed ease;
+
+    &--unlocked {
+      &:hover {
+        background: v.$dusty-rose;
+        color: v.$paper-white;
+        transform: translateX(3px);
+      }
+    }
+
+    &--locked {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: rgba(v.$ink-black, 0.05);
+    }
+
+    &--selected {
+      border-color: v.$warm-gold;
+      box-shadow: 0 0 8px rgba(v.$warm-gold, 0.4), v.$retro-shadow;
+      background: rgba(v.$warm-gold, 0.12);
+    }
+  }
+
+  &__icon {
+    font-size: 1.2rem;
+    width: 1.5rem;
+    text-align: center;
+  }
+
+  &__name {
+    flex: 1;
+    color: v.$ink-black;
+  }
+
+  &__status {
+    font-size: 0.9rem;
+  }
+}
+

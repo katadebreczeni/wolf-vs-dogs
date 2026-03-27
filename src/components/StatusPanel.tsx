@@ -1,11 +1,13 @@
 import type { GameState } from '../types/game';
+import { getDifficultyById } from '../ai/difficulty';
 
 interface StatusPanelProps {
   state: GameState;
 }
 
 export function StatusPanel({ state }: StatusPanelProps) {
-  const { message, isAiTurn, currentPlayer, phase } = state;
+  const { message, isAiTurn, currentPlayer, phase, difficultyLevel } = state;
+  const difficulty = getDifficultyById(difficultyLevel);
 
   const panelClass = [
     'status-panel',
@@ -23,6 +25,11 @@ export function StatusPanel({ state }: StatusPanelProps) {
 
   return (
     <div className={panelClass}>
+      {phase !== 'menu' && (
+        <span className="status-panel__level" title={`AI: ${difficulty.name}`}>
+          {difficulty.icon}
+        </span>
+      )}
       <span>
         {message}
         {isAiTurn && phase !== 'gameOver' && phase !== 'menu' && (
@@ -32,4 +39,3 @@ export function StatusPanel({ state }: StatusPanelProps) {
     </div>
   );
 }
-

@@ -42,15 +42,31 @@ The visual style is inspired by **Cuphead** – a **1930s Fleischer Studios cart
 
 ## 🧠 AI System
 
+The AI features **5 progressive difficulty levels** – starting very easy for beginners and scaling up to a formidable opponent.
+
+| Level | Name | Search Depth | Blunder % | Description |
+|-------|------|-------------|-----------|-------------|
+| 1 | 🌱 **Seedling** | 1 | 60% | Very beginner – almost random moves |
+| 2 | 🌿 **Sprout** | 2-3 | 35% | Beginner – sometimes plays well, easy to beat |
+| 3 | 🌳 **Sapling** | 4-5 | 15% | Medium – thinks ahead, has some weak spots |
+| 4 | 🌲 **Tree** | 6-8 | 5% | Hard – rarely blunders, strategically strong |
+| 5 | 🏰 **Giant** | 10-12 | 0% | Master – full minimax + learning, very hard to beat |
+
+Levels unlock progressively based on cumulative wins (0 → 3 → 8 → 15 → 25).
+
+### 🌱 Magic Beanstalk
+
+Your progress is visualized as a **1930s cartoon-style magic beanstalk** growing next to the board. As you level up, the beanstalk grows taller – from a tiny seedling to a giant vine reaching a castle in the clouds!
+
+### Technical Details
+
 | Property | Details |
 |----------|---------|
 | **Algorithm** | Minimax + Alpha-Beta pruning |
-| **Search depth** | 8–12 moves ahead (iterative deepening) |
-| **Time limit** | 2000ms per move |
-| **Cache** | Zobrist hash-based transposition table (100K entries) |
+| **Iterative deepening** | Depth 1 → max (level-dependent) |
+| **Cache** | Zobrist hash transposition table (100K entries) |
 | **Evaluation** | 10-factor heuristic (mobility, formation, escape routes, etc.) |
-| **Learning** | Weight updates after every game – `localStorage` persistence |
-| **Effect** | Noticeable improvement after ~10-20 games |
+| **Learning** | Weight updates after games (levels 4-5 only) |
 
 ---
 
@@ -88,6 +104,8 @@ src/
 │   └── transpositionTable.ts  # Zobrist hash cache
 │
 ├── components/            # React UI components
+│   ├── Beanstalk.tsx      #   Magic beanstalk progress visualization
+│   ├── DifficultySelector.tsx # Difficulty level picker
 │   ├── GameBoard.tsx      #   8×8 CSS Grid board
 │   ├── GameOverModal.tsx  #   Game over modal (victory/defeat)
 │   ├── MainMenu.tsx       #   Start screen, role selection
@@ -110,6 +128,7 @@ src/
 ├── styles/                # SCSS (Cuphead design system)
 │   ├── _animations.scss   #   Bounce, shake, grain, wobble, etc.
 │   ├── _base.scss         #   Reset, vignette, grain overlay
+│   ├── _beanstalk.scss    #   Magic beanstalk CSS art + grow animation
 │   ├── _board.scss        #   Board grid, squares, textures
 │   ├── _buttons.scss      #   Retro hard-shadow buttons
 │   ├── _menu.scss         #   Main menu vintage poster
@@ -164,7 +183,8 @@ src/
 
 Stored in the browser's `localStorage`:
 - **Game statistics** – win/loss, breakdown by role
-- **AI learned weights** – evaluation heuristic parameters
+- **Difficulty progress** – highest unlocked level, selected level
+- **AI learned weights** – evaluation heuristic parameters (levels 4-5)
 - **Position memory** – up to 500 remembered board states
 
 ---

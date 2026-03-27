@@ -15,6 +15,7 @@ export const INITIAL_STATE: GameState = {
   winner: null,
   message: 'Choose your side!',
   isAiTurn: false,
+  difficultyLevel: 1,
   lastMove: null,
 };
 
@@ -28,6 +29,15 @@ export function gameReducer(
   action: GameAction
 ): GameState {
   switch (action.type) {
+    // ── DIFFICULTY SELECTION ────────────────────────────────
+    case 'SELECT_DIFFICULTY': {
+      if (state.phase !== 'menu') return state;
+      return {
+        ...state,
+        difficultyLevel: action.level,
+      };
+    }
+
     // ── ROLE SELECTION ──────────────────────────────────────
     case 'SELECT_ROLE': {
       const humanRole = action.role;
@@ -43,6 +53,7 @@ export function gameReducer(
         validMoves: [],
         winner: null,
         lastMove: null,
+        difficultyLevel: state.difficultyLevel,  // preserve selected difficulty
         isAiTurn: !isHumanWolf,
         message: isHumanWolf
           ? '🐺 Place your wolf on any dark square!'
@@ -313,6 +324,7 @@ export function gameReducer(
       return {
         ...INITIAL_STATE,
         dogs: freshDogs(),
+        difficultyLevel: state.difficultyLevel,
       };
     }
 

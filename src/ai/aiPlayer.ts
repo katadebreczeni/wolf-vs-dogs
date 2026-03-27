@@ -1,8 +1,9 @@
-import type { GameState, Position } from '../types/game';
-import type { AiMove, AiPlayerConfig, LearningData, MinimaxConfig } from '../types/ai';
+import type { GameState, Position, PlayerRole } from '../types/game';
+import type { AiMove, AiPlayerConfig, LearningData, MinimaxConfig, DifficultyLevel } from '../types/ai';
 import { getAllDarkSquares } from '../game/board';
-import { evaluatePosition } from './evaluation';
+import { evaluatePosition, DEFAULT_WEIGHTS } from './evaluation';
 import { iterativeDeepeningMinimax } from './minimax';
+import { generateAllMoves } from '../game/moves';
 
 /** Default minimax configuration */
 export const DEFAULT_MINIMAX_CONFIG: MinimaxConfig = {
@@ -63,3 +64,40 @@ export function computeWolfPlacement(
   return bestPos;
 }
 
+/**
+ * Compute AI move with difficulty-based blunder system.
+ * Lower levels intentionally make random moves at a given probability.
+ */
+export function computeAiMoveWithDifficulty(
+  state: GameState,
+  difficulty: DifficultyLevel,
+  aiRole: PlayerRole,
+  learningData: LearningData
+): AiMove {
+  // 1. Blunder check: should AI make a random move?
+  if (difficulty.blunderChance > 0 && Math.random() < difficulty.blunderChance) {
+    const allMoves = generateAllMoves(state, aiRole);
+    if (allMoves.length > 0) {
+      return allMoves[Math.floor(Math.random() * allMoves.length)];
+    }
+  }
+
+  // 2. Normal minimax with difficulty-limited config
+  const config: MinimaxConfig = {
+    maxDepth: difficulty.maxDepth,
+    maxTimeMs: difficulty.maxTimeMs,
+    useIterativeDeepening: true,
+    useTranspositionTable: difficulty.useTranspositionTable,
+    useMoveSorting: difficulty.useMoveSorting,
+  };
+
+  const weights = difficulty.useLearning
+    ? learningData.weights
+    : DEFAULT_WEIGHTS;
+
+  return computeAiMove(
+    state,
+    { role: aiRole, minimaxConfig: config },
+    { ...learningData, weights }
+  );
+}

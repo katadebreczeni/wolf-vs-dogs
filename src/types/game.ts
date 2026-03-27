@@ -53,6 +53,7 @@ export interface GameState {
   winner: PlayerRole | null;
   message: string;
   isAiTurn: boolean;
+  difficultyLevel: number;        // 1-5 (current AI difficulty)
   lastMove: {
     from: Position;
     to: Position;
@@ -64,6 +65,7 @@ export interface GameState {
 
 export type GameAction =
   | { type: 'SELECT_ROLE'; role: PlayerRole }
+  | { type: 'SELECT_DIFFICULTY'; level: number }
   | { type: 'PLACE_WOLF'; position: Position }
   | { type: 'SELECT_PIECE'; pieceId: string }
   | { type: 'DESELECT_PIECE' }
@@ -84,6 +86,8 @@ export interface GameStats {
   humanWinsAsDog: number;
   aiWinsAsWolf: number;
   aiWinsAsDog: number;
+  highestUnlockedLevel: number;   // 1-5
+  selectedLevel: number;          // 1-5
 }
 
 // --- Win Condition ---

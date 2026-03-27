@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 import type { GameState, GameAction } from '../types/game';
-import { computeAiMove, computeWolfPlacement, DEFAULT_MINIMAX_CONFIG } from '../ai/aiPlayer';
+import { computeAiMoveWithDifficulty, computeWolfPlacement } from '../ai/aiPlayer';
 import { loadLearningData } from '../ai/learningStore';
+import { getDifficultyById } from '../ai/difficulty';
 
 /**
  * AI hook – watches game state and triggers AI moves when it's AI's turn.
- * Handles both wolf placement (setup) and regular moves (playing).
+ * Uses difficulty level to configure AI strength + blunder chance.
  */
 export function useAI(
   state: GameState,
@@ -25,6 +26,7 @@ export function useAI(
       if (controller.signal.aborted) return;
 
       const learningData = loadLearningData();
+      const difficulty = getDifficultyById(state.difficultyLevel);
 
       if (state.phase === 'setup') {
         // AI places wolf
@@ -33,14 +35,15 @@ export function useAI(
           dispatch({ type: 'AI_PLACE_WOLF', position });
         }
       } else if (state.phase === 'playing') {
-        // AI makes a move
+        // AI makes a move using difficulty-based logic
         const aiRole =
           state.humanRole === 'wolfPlayer' ? 'dogPlayer' : 'wolfPlayer';
 
         try {
-          const move = computeAiMove(
+          const move = computeAiMoveWithDifficulty(
             state,
-            { role: aiRole, minimaxConfig: DEFAULT_MINIMAX_CONFIG },
+            difficulty,
+            aiRole,
             learningData
           );
 
@@ -48,7 +51,6 @@ export function useAI(
             dispatch({ type: 'AI_MOVE', from: move.from, to: move.to });
           }
         } catch {
-          // Fallback – shouldn't happen, but be safe
           console.error('AI failed to compute a move');
         }
       }
@@ -57,6 +59,5 @@ export function useAI(
     doAiTurn();
 
     return () => controller.abort();
-  }, [state.isAiTurn, state.phase, dispatch, state]);
+  }, [state.isAiTurn, state.phase, state.difficultyLevel, dispatch, state]);
 }
-

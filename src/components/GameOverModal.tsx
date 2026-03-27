@@ -1,5 +1,6 @@
 import type { PlayerRole, GameStats } from '../types/game';
 import { StatsDisplay } from './StatsDisplay';
+import { DIFFICULTY_LEVELS, getDifficultyById } from '../ai/difficulty';
 
 interface GameOverModalProps {
   winner: PlayerRole;
@@ -7,6 +8,7 @@ interface GameOverModalProps {
   onPlayAgain: () => void;
   onMainMenu: () => void;
   stats: GameStats;
+  previousHighestLevel: number;
 }
 
 export function GameOverModal({
@@ -15,8 +17,18 @@ export function GameOverModal({
   onPlayAgain,
   onMainMenu,
   stats,
+  previousHighestLevel,
 }: GameOverModalProps) {
   const humanWon = winner === humanRole;
+
+  // Check if a new level was unlocked
+  const newLevelUnlocked = stats.highestUnlockedLevel > previousHighestLevel;
+  const unlockedLevel = newLevelUnlocked
+    ? getDifficultyById(stats.highestUnlockedLevel)
+    : null;
+
+  // Next level info
+  const nextLevel = DIFFICULTY_LEVELS.find((l) => l.id === stats.highestUnlockedLevel + 1);
 
   // Generate confetti elements for victory
   const confetti = humanWon
@@ -65,6 +77,28 @@ export function GameOverModal({
             : 'AI wins! Better luck next time!'}
         </div>
 
+        {/* Level up notification */}
+        {newLevelUnlocked && unlockedLevel && (
+          <div className="game-over-modal__level-up">
+            <span className="game-over-modal__level-up-text">
+              🎉 New level unlocked: {unlockedLevel.name} {unlockedLevel.icon}!
+            </span>
+          </div>
+        )}
+
+        {/* Next level progress */}
+        {nextLevel && (
+          <div className="game-over-modal__next-level">
+            Next: {nextLevel.icon} {nextLevel.name} – need {nextLevel.winsToUnlock} total wins
+          </div>
+        )}
+
+        {!nextLevel && (
+          <div className="game-over-modal__next-level game-over-modal__next-level--max">
+            🏰 You've reached the top of the beanstalk!
+          </div>
+        )}
+
         <StatsDisplay stats={stats} />
 
         <div className="game-over-modal__actions">
@@ -79,4 +113,3 @@ export function GameOverModal({
     </div>
   );
 }
-
